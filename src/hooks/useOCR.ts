@@ -15,20 +15,128 @@ export function useOCR() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState(0);
 
-    const processImage = async (imageFile: File): Promise<ExtractedReceiptData> => {
+    const autoCorrectImage = async (imageFile: File): Promise<File> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d')!;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                // 1. Detección básica de bordes para recorte (Magic Crop)
+                // Analizamos una cuadrícula para encontrar donde termina el fondo y empieza el papel
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+                const threshold = 40; // Sensibilidad al contraste
+
+                // Muestreo rápido (cada 10 pixeles)
+                for (let y = 0; y < canvas.height; y += 10) {
+                    for (let x = 0; x < canvas.width; x += 10) {
+                        const i = (y * canvas.width + x) * 4;
+                        const r = data[i], g = data[i + 1], b = data[i + 2];
+                        // Si no es muy oscuro (asumiendo fondo oscuro o muy claro contrastado)
+                        const brightness = (r + g + b) / 3;
+                        if (brightness > threshold && brightness < 250) {
+                            if (x < minX) minX = x;
+                            if (y < minY) minY = y;
+                            if (x > maxX) maxX = x;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+
+                // Margen de seguridad
+                minX = Math.max(0, minX - 20);
+                minY = Math.max(0, minY - 20);
+                maxX = Math.min(canvas.width, maxX + 20);
+                maxY = Math.min(canvas.height, maxY + 20);
+
+                const cropWidth = maxX - minX;
+                const cropHeight = maxY - minY;
+
+                if (cropWidth > 100 && cropHeight > 100) {
+                    const cropCanvas = document.createElement('canvas');
+                    cropCanvas.width = cropWidth;
+                    cropCanvas.height = cropHeight;
+                    const cropCtx = cropCanvas.getContext('2d')!;
+                    cropCtx.drawImage(img, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+                    cropCanvas.toBlob((blob) => {
+                        if (blob) {
+                            resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
+                        }
+                    }, 'image/jpeg', 0.9);
+                } else {
+                    resolve(imageFile); // No se pudo recortar confiablemente
+                }
+            };
+            img.src = URL.createObjectURL(imageFile);
+        });
+    };
+
+    const rotateImage = async (imageFile: File, degrees: number): Promise<File> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d')!;
+
+                if (degrees === 90 || degrees === 270) {
+                    canvas.width = img.height;
+                    canvas.height = img.width;
+                } else {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                }
+
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.rotate((degrees * Math.PI) / 180);
+                ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
+                    }
+                }, 'image/jpeg', 0.95);
+            };
+            img.src = URL.createObjectURL(imageFile);
+        });
+    };
+
+    const processImage = async (imageFile: File, options: { autoCorrect?: boolean } = {}): Promise<ExtractedReceiptData> => {
         setIsProcessing(true);
         setProgress(0);
 
         try {
+            let processedFile = imageFile;
+            if (options.autoCorrect) {
+                setProgress(5);
+                processedFile = await autoCorrectImage(imageFile);
+            }
+
             const worker = await createWorker('spa', 1, {
                 logger: (m) => {
                     if (m.status === 'recognizing text') {
-                        setProgress(Math.round(m.progress * 100));
+                        setProgress(Math.round(m.progress * 80) + 20);
                     }
                 },
             });
 
-            const { data } = await worker.recognize(imageFile);
+            // Auto-rotación si se solicita
+            if (options.autoCorrect) {
+                setProgress(10);
+                const { data: orientation } = await (worker as any).detect(processedFile);
+                if (orientation && orientation.orientation_degrees !== 0) {
+                    processedFile = await rotateImage(processedFile, orientation.orientation_degrees);
+                }
+                setProgress(15);
+            }
+
+            const { data } = await worker.recognize(processedFile);
             await worker.terminate();
 
             const extractedData = parseReceiptText(data.text, data.confidence);
@@ -43,6 +151,8 @@ export function useOCR() {
 
     return {
         processImage,
+        rotateImage,
+        autoCorrectImage,
         isProcessing,
         progress,
     };

@@ -20,9 +20,10 @@ export function ReceiptScannerPage() {
     });
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [autoCorrect, setAutoCorrect] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { processImage, isProcessing, progress } = useOCR();
+    const { processImage, rotateImage, isProcessing, progress } = useOCR();
     const { addTiquete } = useTickets();
     const empresas = catalogs.getEmpresas();
     const compradores = catalogs.getCompradores();
@@ -47,6 +48,18 @@ export function ReceiptScannerPage() {
             setImagePreview(e.target?.result as string);
         };
         reader.readAsDataURL(file);
+    };
+
+    const handleRotate = async () => {
+        if (!imageFile) return;
+        const rotatedFile = await rotateImage(imageFile, 90);
+        setImageFile(rotatedFile);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setImagePreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(rotatedFile);
     };
 
     const handleDrop = (e: React.DragEvent) => {
@@ -190,6 +203,35 @@ export function ReceiptScannerPage() {
                                     <X size={18} className="text-slate-500" />
                                 </button>
                             </div>
+
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleRotate}
+                                    title="Rotar imagen 90°"
+                                    className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors text-sm border border-slate-200"
+                                >
+                                    <Scan size={14} className="rotate-90" />
+                                    <span>Rotar 90°</span>
+                                </button>
+                                <div className="flex-1 flex items-center justify-center gap-3 py-2 px-3 bg-slate-50 rounded-lg border border-slate-200">
+                                    <span className="text-sm text-slate-600">Auto-recorte</span>
+                                    <button
+                                        onClick={() => setAutoCorrect(!autoCorrect)}
+                                        className={cn(
+                                            "relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                            autoCorrect ? "bg-blue-600" : "bg-slate-300"
+                                        )}
+                                    >
+                                        <span
+                                            className={cn(
+                                                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                                                autoCorrect ? "translate-x-4" : "translate-x-0"
+                                            )}
+                                        />
+                                    </button>
+                                </div>
+                            </div>
+
                             <img
                                 src={imagePreview}
                                 alt="Preview"
@@ -209,7 +251,7 @@ export function ReceiptScannerPage() {
                                     {isProcessing ? (
                                         <>
                                             <Loader2 size={18} className="animate-spin" />
-                                            Escaneando... {progress}%
+                                            {progress < 10 ? 'Preparando...' : `Escaneando... ${progress}%`}
                                         </>
                                     ) : (
                                         <>
