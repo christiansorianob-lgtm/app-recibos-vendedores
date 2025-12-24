@@ -51,20 +51,27 @@ export function Layout({ children, rightPanel }: LayoutProps) {
         }
     }, [isMenuOpen]);
 
-    const NavLink = ({ to, icon: Icon, label, exact = false }: { to: string, icon: any, label: string, exact?: boolean }) => {
+    const NavLink = ({ to, icon: Icon, label, exact = false, mobile = false }: { to: string, icon: any, label: string, exact?: boolean, mobile?: boolean }) => {
         const isActive = exact ? location.pathname === to : location.pathname.startsWith(to);
         return (
             <Link
                 to={to}
                 onClick={() => setIsMenuOpen(false)}
                 className={cn(
-                    "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                    "flex items-center gap-3 px-4 transition-colors font-medium",
+                    mobile
+                        ? "py-3 text-base rounded-lg w-full"
+                        : "py-2 text-sm border-b-2",
                     isActive
-                        ? "border-blue-600 text-blue-700 bg-blue-50/50"
-                        : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                        ? mobile
+                            ? "bg-blue-50 text-blue-700"
+                            : "border-blue-600 text-blue-700 bg-blue-50/50"
+                        : mobile
+                            ? "text-slate-600 hover:bg-slate-50"
+                            : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                 )}
             >
-                <Icon size={16} />
+                <Icon size={mobile ? 20 : 16} />
                 <span>{label}</span>
             </Link>
         );
@@ -152,9 +159,9 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                         />
 
                         {/* Drawer */}
-                        <div className="fixed left-0 top-0 h-full w-[80vw] max-w-[320px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 z-[9999]">
-                            {/* Menu Header with Brand */}
-                            <div className="p-4 h-14 border-b border-slate-100 flex items-center justify-between shrink-0">
+                        <aside className="fixed left-0 top-0 h-screen w-[80vw] max-w-[360px] bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 z-[9999]">
+                            {/* Drawer Header */}
+                            <div className="px-4 h-14 border-b border-slate-100 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-2">
                                     <div className="bg-blue-600 p-1.5 rounded-md">
                                         <Palmtree className="text-white h-4 w-4" />
@@ -169,34 +176,35 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                                 </button>
                             </div>
 
-                            {/* Menu Links */}
-                            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
-                                <NavLink to="/" icon={LayoutDashboard} label="Planning Grid" exact />
-                                <NavLink to="/tickets" icon={TicketIcon} label="Tiquetes" />
-                                <NavLink to="/nuevo" icon={Plus} label="Nuevo Tiquete" />
+                            {/* Nav Area (Scrollable) */}
+                            {/* min-h-0 is essential for overflow-y-auto to work in a flex column */}
+                            <nav className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-1 custom-scrollbar">
+                                <NavLink to="/" icon={LayoutDashboard} label="Planning Grid" exact mobile />
+                                <NavLink to="/tickets" icon={TicketIcon} label="Tiquetes" mobile />
+                                <NavLink to="/nuevo" icon={Plus} label="Nuevo Tiquete" mobile />
 
-                                <div className="mt-6 pt-6 border-t border-slate-100">
-                                    <span className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Catálogos</span>
+                                <div className="mt-4 pt-4 border-t border-slate-100">
+                                    <span className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Catálogos</span>
                                     <div className="flex flex-col gap-1">
-                                        <NavLink to="/catalogos/empresas" icon={Building2} label="Empresas / Fincas" />
-                                        <NavLink to="/catalogos/compradores" icon={UserCheck} label="Compradores" />
+                                        <NavLink to="/catalogos/empresas" icon={Building2} label="Empresas / Fincas" mobile />
+                                        <NavLink to="/catalogos/compradores" icon={UserCheck} label="Compradores" mobile />
                                     </div>
                                 </div>
-                            </div>
+                            </nav>
 
-                            {/* Profile Section Footer */}
+                            {/* Drawer Footer */}
                             <div className="p-4 border-t border-slate-100 bg-slate-50 shrink-0">
                                 <div className="flex items-center gap-3 px-3 py-2">
-                                    <div className="h-9 w-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-bold">
+                                    <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-sm font-bold border border-blue-200">
                                         AD
                                     </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-bold text-slate-700">Administrador</span>
+                                    <div className="flex flex-col text-left">
+                                        <span className="text-sm font-bold text-slate-700 leading-tight">Administrador</span>
                                         <span className="text-[11px] text-slate-500">Enterprise Edition</span>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </aside>
                     </div>
                 )}
 
