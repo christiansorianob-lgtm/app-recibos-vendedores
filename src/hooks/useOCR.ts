@@ -22,14 +22,14 @@ export function useOCR() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d')!;
 
-                // 1. Redimensionar para un tamaño óptimo
-                const targetWidth = 3000;
+                // 1. Redimensionar para un tamaño estable y de alta definición
+                const targetWidth = 2500;
                 const scale = targetWidth / img.width;
                 canvas.width = targetWidth;
                 canvas.height = img.height * scale;
 
-                // 2. Grayscale inicial
-                ctx.filter = 'grayscale(100%)';
+                // 2. Grayscale inicial con brillo compensado
+                ctx.filter = 'grayscale(100%) brightness(115%) contrast(140%)';
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -37,35 +37,37 @@ export function useOCR() {
                 const width = imageData.width;
                 const height = imageData.height;
 
-                // 3. Filtro de Enfoque (Strong Sharpen)
-                const sharpenKernel = [
+                // 3. Filtro de Enfoque (Strong Laplacian Sharpen)
+                // Usamos un array temporal para no corromper la lectura de píxeles
+                const sharpened = new Uint8ClampedArray(data.length);
+                const kernel = [
                     -1, -1, -1,
                     -1, 9, -1,
                     -1, -1, -1
                 ];
-                const sharpened = new Uint8ClampedArray(data.length);
+
                 for (let y = 1; y < height - 1; y++) {
                     for (let x = 1; x < width - 1; x++) {
+                        const outIdx = (y * width + x) * 4;
                         for (let c = 0; c < 3; c++) {
                             let sum = 0;
                             for (let ky = 0; ky < 3; ky++) {
                                 for (let kx = 0; kx < 3; kx++) {
                                     const idx = ((y + ky - 1) * width + (x + kx - 1)) * 4 + c;
-                                    sum += data[idx] * sharpenKernel[ky * 3 + kx];
+                                    sum += data[idx] * kernel[ky * 3 + kx];
                                 }
                             }
-                            const outIdx = (y * width + x) * 4 + c;
-                            sharpened[outIdx] = Math.min(255, Math.max(0, sum));
+                            sharpened[outIdx + c] = Math.min(255, Math.max(0, sum));
                         }
-                        sharpened[(y * width + x) * 4 + 3] = 255;
+                        sharpened[outIdx + 3] = 255;
                     }
                 }
 
-                // 4. Umbral Adaptativo (Bradley-Roth)
-                // Ideal para recibos con sombras o iluminación irregular
-                const S = Math.floor(width / 16);
-                const T = 0.12;
-                const integral = new Int32Array(width * height);
+                // 4. Umbral Adaptativo Suave (Bradley-Roth optimizado y seguro)
+                // Usamos Float64Array para evitar overflow en sumas de áreas grandes
+                const S = Math.floor(width / 12);
+                const T = 0.15;
+                const integral = new Float64Array(width * height);
                 for (let x = 0; x < width; x++) {
                     let sum = 0;
                     for (let y = 0; y < height; y++) {
@@ -77,6 +79,7 @@ export function useOCR() {
                     }
                 }
 
+                const finalData = new Uint8ClampedArray(data.length);
                 for (let x = 0; x < width; x++) {
                     for (let y = 0; y < height; y++) {
                         const x1 = Math.max(0, x - S / 2);
@@ -89,10 +92,11 @@ export function useOCR() {
                         const i = (y * width + x) * 4;
                         const b = (sharpened[i] + sharpened[i + 1] + sharpened[i + 2]) / 3;
                         const val = (b * count) < (sum * (1.0 - T)) ? 0 : 255;
-                        sharpened[i] = sharpened[i + 1] = sharpened[i + 2] = val;
+                        finalData[i] = finalData[i + 1] = finalData[i + 2] = val;
+                        finalData[i + 3] = 255;
                     }
                 }
-                ctx.putImageData(new ImageData(sharpened, width, height), 0, 0);
+                ctx.putImageData(new ImageData(finalData, width, height), 0, 0);
 
                 canvas.toBlob((blob) => {
                     if (blob) {
