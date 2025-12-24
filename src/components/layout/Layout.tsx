@@ -103,7 +103,7 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                     </button>
 
                     <nav className="hidden md:flex items-center gap-1">
-                        <NavLink to="/" icon={LayoutDashboard} label="Planning Grid" exact />
+                        <NavLink to="/" icon={LayoutDashboard} label="Panel de Control" exact />
                         <NavLink to="/tickets" icon={TicketIcon} label="Tiquetes" />
 
                         {/* Catálogos Dropdown */}
@@ -130,7 +130,7 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                                         className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                                     >
                                         <Building2 size={16} className="text-slate-400" />
-                                        <span>Empresas / Fincas</span>
+                                        <span>Empresas</span>
                                     </Link>
                                     <Link
                                         to="/catalogos/compradores"
@@ -179,14 +179,14 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                             {/* Nav Area (Scrollable) */}
                             {/* min-h-0 is essential for overflow-y-auto to work in a flex column */}
                             <nav className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-1 custom-scrollbar">
-                                <NavLink to="/" icon={LayoutDashboard} label="Planning Grid" exact mobile />
+                                <NavLink to="/" icon={LayoutDashboard} label="Panel de Control" exact mobile />
                                 <NavLink to="/tickets" icon={TicketIcon} label="Tiquetes" mobile />
                                 <NavLink to="/nuevo" icon={Plus} label="Nuevo Tiquete" mobile />
 
                                 <div className="mt-4 pt-4 border-t border-slate-100">
                                     <span className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Catálogos</span>
                                     <div className="flex flex-col gap-1">
-                                        <NavLink to="/catalogos/empresas" icon={Building2} label="Empresas / Fincas" mobile />
+                                        <NavLink to="/catalogos/empresas" icon={Building2} label="Empresas" mobile />
                                         <NavLink to="/catalogos/compradores" icon={UserCheck} label="Compradores" mobile />
                                     </div>
                                 </div>
