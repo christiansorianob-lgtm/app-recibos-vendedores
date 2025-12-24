@@ -378,6 +378,19 @@ export function ReceiptScannerPage() {
                                 />
                             </div>
 
+                            {/* Raw Text Debug (New) */}
+                            <div className="pt-4 border-t border-slate-100">
+                                <details className="group">
+                                    <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors list-none">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-open:bg-blue-500" />
+                                        Ver Texto Extraído (Bruto)
+                                    </summary>
+                                    <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-mono text-slate-500 overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                        {extractedData.rawText}
+                                    </div>
+                                </details>
+                            </div>
+
                             {/* Save Button */}
                             <button
                                 onClick={handleSave}

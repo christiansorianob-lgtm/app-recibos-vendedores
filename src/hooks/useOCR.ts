@@ -195,16 +195,19 @@ function parseReceiptText(text: string, confidence: number): ExtractedReceiptDat
     // 3. Buscar número de tiquete (Prioridad: GUÍA TRANSPORTE VEHÍCULO)
     // El objetivo es el número de 10 dígitos (ej. 1000082175)
 
+    // Intento 1: Buscar en el bloque de texto completo cerca de "GUIA" o "TRANSPORTE"
+    // Buscamos cualquier número de 9-11 dígitos que esté después de la palabra clave
     const textNormal = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const guiaWords = ['guia', 'transp', 'vehi', 'gula', 'cuia'];
 
-    // Intento 1: Buscar específicamente palabras clave de GUIA (con tolerancia a errores de OCR comunes)
-    for (const line of lines) {
-        const lowerLine = line.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        // Tolerancia a "GULA", "CUIA", "TRANSPOR", etc.
-        const hasKeyword = /gu[ia|la]|transp|vehi|u[i|l]a/i.test(lowerLine);
-
-        if (hasKeyword && !lowerLine.includes('nit')) {
-            const match = line.match(/(\d{8,15})/);
+    for (const word of guiaWords) {
+        const index = textNormal.indexOf(word);
+        if (index !== -1) {
+            // Buscamos en los siguientes 120 caracteres
+            const slice = textNormal.substring(index, index + 120);
+            // Ignorar específicamente el bloque que contenga "CODIGO" o "NIT" si es posible
+            const subSlice = slice.split('codigo')[0].split('nit')[0];
+            const match = subSlice.match(/(\d{9,12})/);
             if (match) {
                 numeroTiquete = match[1];
                 break;
@@ -212,28 +215,17 @@ function parseReceiptText(text: string, confidence: number): ExtractedReceiptDat
         }
     }
 
-    // Intento 2: Buscar en el bloque de texto cerca de GUIA si falló por líneas
+    // Intento 2: Si no hay match con palabras clave, buscamos el número más largo del recibo (que no sea NIT)
     if (!numeroTiquete) {
-        const guiaIndex = Math.max(textNormal.indexOf('guia'), textNormal.indexOf('transp'), textNormal.indexOf('vehi'));
-        if (guiaIndex !== -1) {
-            const afterGuia = textNormal.substring(guiaIndex, guiaIndex + 120);
-            const match = afterGuia.match(/(\d{8,15})/);
-            // Asegurarse de que no estamos capturando el NIT que está antes/después
-            if (match && !afterGuia.substring(0, afterGuia.indexOf(match[0])).includes('nit')) {
-                numeroTiquete = match[1];
-            }
-        }
-    }
-
-    // Intento 3: Prioridad absoluta por longitud (Si hay un número de 10 dígitos que no es NIT, es probablemente la guía)
-    if (!numeroTiquete) {
-        const allLongNumbers = text.match(/\d{9,12}/g);
-        if (allLongNumbers) {
-            for (const num of allLongNumbers) {
-                // Verificar contexto en el texto completo
+        const allNumbers = text.match(/\d{5,15}/g); // Agarrar cualquier número de +5 dígitos
+        if (allNumbers) {
+            // Ordenar por longitud descendente para preferir el más largo (Guía de 10 vs Interno de 6)
+            const sortedNumbers = [...allNumbers].sort((a, b) => b.length - a.length);
+            for (const num of sortedNumbers) {
                 const idx = text.indexOf(num);
-                const context = text.substring(Math.max(0, idx - 40), idx + 20).toLowerCase();
-                if (!context.includes('nit')) {
+                const context = text.substring(Math.max(0, idx - 40), idx + 10).toLowerCase();
+                // Si el número tiene 10 dígitos y NO es NIT, es nuestra Guía
+                if (num.length >= 9 && !context.includes('nit')) {
                     numeroTiquete = num;
                     break;
                 }
@@ -241,12 +233,12 @@ function parseReceiptText(text: string, confidence: number): ExtractedReceiptDat
         }
     }
 
-    // Intento 4 (Fallback final): Solo si lo anterior falla, usar CODIGO INTERNO (pero es menos deseado)
+    // Intento 3: Si sigue vacío, buscar fallback específico de CODIGO INTERNO (Solo como último recurso)
     if (!numeroTiquete) {
         for (const line of lines) {
             const lowerLine = line.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-            if (lowerLine.includes('codigo') || lowerLine.includes('interno') || lowerLine.includes('tiquete')) {
-                const match = line.match(/(\d{4,10})/);
+            if (lowerLine.includes('codigo') || lowerLine.includes('interno')) {
+                const match = line.match(/(\d{4,9})/);
                 if (match) {
                     numeroTiquete = match[1];
                     break;
