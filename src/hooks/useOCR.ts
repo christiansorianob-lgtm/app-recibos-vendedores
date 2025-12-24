@@ -37,13 +37,13 @@ export function useOCR() {
                 const width = imageData.width;
                 const height = imageData.height;
 
-                // 3. Filtro de Enfoque (Strong Laplacian Sharpen)
+                // 3. Filtro de Enfoque (Soft Laplacian Sharpen para no generar ruido)
                 // Usamos un array temporal para no corromper la lectura de píxeles
                 const sharpened = new Uint8ClampedArray(data.length);
                 const kernel = [
-                    -1, -1, -1,
-                    -1, 9, -1,
-                    -1, -1, -1
+                    0, -1, 0,
+                    -1, 5, -1,
+                    0, -1, 0
                 ];
 
                 for (let y = 1; y < height - 1; y++) {
@@ -63,10 +63,11 @@ export function useOCR() {
                     }
                 }
 
-                // 4. Umbral Adaptativo Suave (Bradley-Roth optimizado y seguro)
+                // 4. Umbral Adaptativo (Bradley-Roth con reducción de ruido)
+                // Aumentamos S para suavizar y T para ser menos sensible al "mugre"
                 // Usamos Float64Array para evitar overflow en sumas de áreas grandes
-                const S = Math.floor(width / 12);
-                const T = 0.15;
+                const S = Math.floor(width / 8);
+                const T = 0.18;
                 const integral = new Float64Array(width * height);
                 for (let x = 0; x < width; x++) {
                     let sum = 0;
@@ -91,6 +92,8 @@ export function useOCR() {
 
                         const i = (y * width + x) * 4;
                         const b = (sharpened[i] + sharpened[i + 1] + sharpened[i + 2]) / 3;
+
+                        // Si el brillo local es muy similar al promedio, lo dejamos blanco (limpieza de ruido)
                         const val = (b * count) < (sum * (1.0 - T)) ? 0 : 255;
                         finalData[i] = finalData[i + 1] = finalData[i + 2] = val;
                         finalData[i + 3] = 255;
