@@ -22,61 +22,22 @@ export function useOCR() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d')!;
 
-                // 1. Redimensionar para asegurar que el texto sea lo suficientemente grande (3000px ancho)
-                const targetWidth = 3000;
+                // 1. Aumentar resolución (2500px es el punto dulce para Tesseract)
+                const targetWidth = 2500;
                 const scale = targetWidth / img.width;
                 canvas.width = targetWidth;
                 canvas.height = img.height * scale;
 
-                // 2. Aplicar procesamiento de imagen agresivo (Escala de grises + Alto Contraste)
-                // Esto simula una binarización para que el OCR vea texto negro puro sobre blanco
-                ctx.filter = 'grayscale(100%) contrast(250%) brightness(100%)';
+                // 2. Escala de grises + Contraste moderado
+                ctx.filter = 'grayscale(100%) contrast(150%) brightness(110%)';
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                // 3. Detección de bordes para recorte (Magic Crop más conservador)
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-
-                let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
-                const threshold = 100; // Más estricto para detectar tinta negra
-
-                for (let y = 0; y < canvas.height; y += 20) {
-                    for (let x = 0; x < canvas.width; x += 20) {
-                        const i = (y * canvas.width + x) * 4;
-                        if (data[i] < threshold) {
-                            if (x < minX) minX = x;
-                            if (y < minY) minY = y;
-                            if (x > maxX) maxX = x;
-                            if (y > maxY) maxY = y;
-                        }
+                // Desactivamos el recorte por ahora para evitar pérdida de datos en los bordes
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
                     }
-                }
-
-                // Margen de seguridad muy amplio para no cortar nada importante
-                minX = Math.max(0, minX - 100);
-                minY = Math.max(0, minY - 100);
-                maxX = Math.min(canvas.width, maxX + 100);
-                maxY = Math.min(canvas.height, maxY + 100);
-
-                const cropWidth = maxX - minX;
-                const cropHeight = maxY - minY;
-
-                if (cropWidth > 500 && cropHeight > 500) {
-                    const cropCanvas = document.createElement('canvas');
-                    cropCanvas.width = cropWidth;
-                    cropCanvas.height = cropHeight;
-                    const cropCtx = cropCanvas.getContext('2d')!;
-                    // Usar la imagen ya filtrada del canvas principal
-                    cropCtx.drawImage(canvas, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-
-                    cropCanvas.toBlob((blob) => {
-                        if (blob) {
-                            resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
-                        }
-                    }, 'image/jpeg', 0.9);
-                } else {
-                    resolve(imageFile);
-                }
+                }, 'image/jpeg', 0.9);
             };
             img.src = URL.createObjectURL(imageFile);
         });
@@ -130,22 +91,16 @@ export function useOCR() {
                 },
             });
 
-            // Configurar parámetros para mejor lectura de múltiples columnas
+            // Configurar parámetros para mejor lectura estable
             await worker.setParameters({
-                tessedit_pageseg_mode: '1', // Automatic con OSD para detectar orientación y columnas
+                tessedit_pageseg_mode: '3', // PSM 3 (Auto) es el más estable para recibos mixtos
                 tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúÁÉÍÓÚñÑ:.-/, $',
                 preserve_interword_spaces: '1',
             });
 
-            // Auto-rotación si se solicita
-            if (options.autoCorrect) {
-                setProgress(10);
-                const { data: orientation } = await worker.detect(processedFile);
-                if (orientation && (orientation as any).orientation_degrees !== 0) {
-                    processedFile = await rotateImage(processedFile, (orientation as any).orientation_degrees);
-                }
-                setProgress(15);
-            }
+            // Eliminamos worker.detect() para evitar el error de "Legacy Model"
+            // La rotación queda manual para mayor fiabilidad por ahora.
+            setProgress(15);
 
             const { data } = await worker.recognize(processedFile);
             await worker.terminate();
