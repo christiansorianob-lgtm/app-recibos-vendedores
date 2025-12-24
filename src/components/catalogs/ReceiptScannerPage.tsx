@@ -62,10 +62,19 @@ export function ReceiptScannerPage() {
             const data = await processImage(imageFile);
             setExtractedData(data);
 
+            // Buscar el ID de la empresa por nombre (ej. "Oleoflores")
+            let suggestedEmpresaId = '';
+            if (data.empresaNombre) {
+                const found = empresas.find(e =>
+                    e.nombre.toLowerCase().includes(data.empresaNombre!.toLowerCase())
+                );
+                if (found) suggestedEmpresaId = found.id;
+            }
+
             // Pre-llenar formulario con datos extraídos
             setFormData({
                 fecha: data.fecha || '',
-                empresaId: '',
+                empresaId: suggestedEmpresaId,
                 compradorId: '',
                 numeroTiquete: data.numeroTiquete || '',
                 kilogramos: data.kilogramos?.toString() || '',

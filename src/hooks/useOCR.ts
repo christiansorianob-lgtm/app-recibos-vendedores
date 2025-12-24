@@ -6,6 +6,7 @@ export interface ExtractedReceiptData {
     kilogramos?: number;
     numeroTiquete?: string;
     valorUnitario?: number;
+    empresaNombre?: string;
     rawText: string;
     confidence: number;
 }
@@ -54,62 +55,74 @@ function parseReceiptText(text: string, confidence: number): ExtractedReceiptDat
     let kilogramos: number | undefined;
     let numeroTiquete: string | undefined;
     let valorUnitario: number | undefined;
+    let empresaNombre: string | undefined;
 
-    // Buscar fecha (formatos: DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
+    // 1. Buscar Nombre de Empresa (Oleoflores S.A.S)
+    for (const line of lines) {
+        if (line.toUpperCase().includes('OLEOFLORES')) {
+            empresaNombre = 'Oleoflores';
+            break;
+        }
+    }
+
+    // 2. Buscar fecha (formatos: DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD)
     const fechaRegex = /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})|(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/;
     for (const line of lines) {
         const match = line.match(fechaRegex);
         if (match) {
             if (match[1]) {
-                // DD/MM/YYYY
                 const day = match[1].padStart(2, '0');
                 const month = match[2].padStart(2, '0');
                 const year = match[3];
                 fecha = `${year}-${month}-${day}`;
             } else if (match[4]) {
-                // YYYY-MM-DD
                 fecha = `${match[4]}-${match[5].padStart(2, '0')}-${match[6].padStart(2, '0')}`;
             }
             break;
         }
     }
 
-    // Buscar peso/kilogramos (número seguido de kg, KG, o cerca de "PESO")
-    const pesoRegex = /(\d+[,.]?\d*)\s*(kg|KG|Kg)/i;
+    // 3. Buscar número de tiquete (GUÍA TRANSPORTE VEHÍCULO: 1000082175)
     for (const line of lines) {
-        if (line.toLowerCase().includes('peso') || line.toLowerCase().includes('neto')) {
-            const match = line.match(/(\d+[,.]?\d*)/);
-            if (match) {
-                kilogramos = parseFloat(match[1].replace(',', '.'));
-                break;
-            }
-        }
-        const match = line.match(pesoRegex);
-        if (match) {
-            kilogramos = parseFloat(match[1].replace(',', '.'));
-            break;
-        }
-    }
-
-    // Buscar número de tiquete (4-6 dígitos, cerca de "TIQUETE" o "CODIGO")
-    for (const line of lines) {
-        if (line.toLowerCase().includes('tiquete') ||
-            line.toLowerCase().includes('codigo') ||
-            line.toLowerCase().includes('interno')) {
-            const match = line.match(/(\d{4,6})/);
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes('guia') || lowerLine.includes('transporte') || lowerLine.includes('vehiculo')) {
+            const match = line.match(/(\d{8,12})/); // Números largos como el del ejemplo
             if (match) {
                 numeroTiquete = match[1];
                 break;
             }
         }
+        // Fallback a números de 4-6 si no hay largos
+        if (!numeroTiquete) {
+            const match = line.match(/(\d{4,6})/);
+            if (match && (lowerLine.includes('tiquete') || lowerLine.includes('codigo'))) {
+                numeroTiquete = match[1];
+            }
+        }
     }
 
-    // Buscar valor unitario (número con $ o COP)
+    // 4. Buscar peso/kilogramos (PESO NETO: 4.590 -> 4590)
+    for (const line of lines) {
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes('peso neto') || lowerLine.includes('neto')) {
+            const match = line.match(/(\d+[,.]\d{3})/); // Formato 1.234 o 1,234
+            if (match) {
+                // Eliminar el punto/coma de miles según el usuario "4.590 son 4590"
+                kilogramos = parseInt(match[1].replace(/[,.]/g, ''));
+                break;
+            }
+            const simpleMatch = line.match(/(\d+)/);
+            if (simpleMatch) {
+                kilogramos = parseInt(simpleMatch[1]);
+                break;
+            }
+        }
+    }
+
+    // 5. Buscar valor unitario
     const valorRegex = /\$?\s*(\d+[,.]?\d*)\s*(COP)?/i;
     for (const line of lines) {
-        if (line.toLowerCase().includes('valor') ||
-            line.toLowerCase().includes('precio') ||
-            line.toLowerCase().includes('unitario')) {
+        if (line.toLowerCase().includes('valor') || line.toLowerCase().includes('precio')) {
             const match = line.match(valorRegex);
             if (match) {
                 valorUnitario = parseFloat(match[1].replace(',', '.'));
@@ -123,6 +136,7 @@ function parseReceiptText(text: string, confidence: number): ExtractedReceiptDat
         kilogramos,
         numeroTiquete,
         valorUnitario,
+        empresaNombre,
         rawText: text,
         confidence,
     };
