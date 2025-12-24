@@ -48,10 +48,10 @@ export function Layout({ children, rightPanel }: LayoutProps) {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-enterprise-gradient font-sans text-slate-900 overflow-hidden">
+        <div className="min-h-screen flex flex-col bg-enterprise-gradient font-sans text-slate-900">
 
             {/* Enterprise Header */}
-            <header className="h-14 bg-white/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 lg:px-6 shrink-0 z-50 shadow-lg">
+            <header className="sticky top-0 h-14 bg-white/80 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 lg:px-6 shrink-0 z-50 shadow-lg">
 
                 {/* Left: Branding & Main Nav */}
                 <div className="flex items-center gap-8">
@@ -64,7 +64,7 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                     </div>
                     {/* Mobile menu button */}
                     <button
-                        className="md:hidden flex items-center p-2"
+                        className="md:hidden flex items-center p-2 text-slate-600 hover:text-blue-600 transition-colors"
                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                         aria-label="Toggle navigation menu"
                     >
@@ -114,31 +114,60 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                         </div>
                     </nav>
                 </div>
-                {/* Mobile navigation drawer */}
+                {/* Mobile navigation drawer/overlay */}
                 {isMenuOpen && (
-                    <div className="fixed inset-0 z-40 bg-black bg-opacity-30" onClick={() => setIsMenuOpen(false)}>
-                        <div className="absolute left-0 top-0 h-full w-64 bg-white shadow-lg p-4 flex flex-col gap-2" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center gap-2 mb-4 px-2">
-                                <Palmtree className="text-blue-600 h-5 w-5" />
-                                <span className="font-bold text-lg text-slate-800">Menú</span>
+                    <div className="fixed inset-0 z-[100] md:hidden">
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)} />
+                        <div className="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col animate-in slide-in-from-left-10 duration-300">
+                            {/* Menu Header with Brand */}
+                            <div className="p-6 h-14 border-b border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="bg-blue-600 p-1.5 rounded-md">
+                                        <Palmtree className="text-white h-4 w-4" />
+                                    </div>
+                                    <span className="font-bold text-lg text-slate-800">Control Palma</span>
+                                </div>
+                                <button
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                >
+                                    <Plus className="rotate-45" size={22} />
+                                </button>
                             </div>
-                            <NavLink to="/" icon={LayoutDashboard} label="Planning Grid" exact />
-                            <NavLink to="/tickets" icon={TicketIcon} label="Tiquetes" />
-                            <NavLink to="/nuevo" icon={Plus} label="Nuevo Tiquete" />
 
-                            <div className="mt-4 pt-4 border-t border-slate-100">
-                                <span className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Catálogos</span>
-                                <div className="mt-2 space-y-1">
-                                    <NavLink to="/catalogos/empresas" icon={Building2} label="Empresas" />
-                                    <NavLink to="/catalogos/compradores" icon={UserCheck} label="Compradores" />
+                            {/* Menu Links */}
+                            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-0.5">
+                                <NavLink to="/" icon={LayoutDashboard} label="Planning Grid" exact />
+                                <NavLink to="/tickets" icon={TicketIcon} label="Tiquetes" />
+                                <NavLink to="/nuevo" icon={Plus} label="Nuevo Tiquete" />
+
+                                <div className="mt-6 pt-6 border-t border-slate-100">
+                                    <span className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-4">Catálogos</span>
+                                    <div className="flex flex-col gap-0.5">
+                                        <NavLink to="/catalogos/empresas" icon={Building2} label="Empresas / Fincas" />
+                                        <NavLink to="/catalogos/compradores" icon={UserCheck} label="Compradores" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Profile Section Footer */}
+                            <div className="p-4 border-t border-slate-100 bg-slate-50">
+                                <div className="flex items-center gap-3 px-3 py-1.5">
+                                    <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-xs font-bold">
+                                        AD
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-700">Administrador</span>
+                                        <span className="text-[10px] text-slate-500">Enterprise Edition</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Center: Global Context Filters (The 'Grid' Controls) */}
-                <div className="hidden md:flex items-center gap-3 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                {/* Center: Global Context Filters - Hidden on small screens */}
+                <div className="hidden lg:flex items-center gap-3 bg-slate-50 p-1 rounded-lg border border-slate-200">
                     <div className="flex items-center gap-2 px-3 py-1 border-r border-slate-200">
                         <span className="text-xs font-semibold text-slate-400 uppercase">País</span>
                         <span className="text-sm font-medium text-slate-700">Colombia</span>
@@ -172,18 +201,16 @@ export function Layout({ children, rightPanel }: LayoutProps) {
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-3">
-                    {/* Placeholder for user profile or simple actions if needed later */}
-                    {/* Right panel toggle for mobile */}
                     {rightPanel && (
                         <button
-                            className="md:hidden flex items-center p-2 text-blue-600"
+                            className="md:hidden flex items-center p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             onClick={() => setIsDrawerOpen(true)}
                             aria-label="Open side panel"
                         >
                             <LayoutDashboard size={20} />
                         </button>
                     )}
-                    <div className="h-8 w-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 text-xs font-bold">
+                    <div className="h-8 w-8 bg-blue-100 rounded-full border border-blue-200 flex items-center justify-center text-blue-700 text-xs font-bold">
                         AD
                     </div>
                 </div>
@@ -191,8 +218,8 @@ export function Layout({ children, rightPanel }: LayoutProps) {
 
 
             {/* Main Workspace */}
-            <div className="flex-1 flex overflow-hidden">
-                <main className="flex-1 overflow-y-auto relative p-4 md:p-6 lg:p-8">
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+                <main className="flex-1 overflow-y-auto relative p-4 md:p-6 lg:p-8 custom-scrollbar">
                     <div className="max-w-7xl mx-auto">
                         {children}
                     </div>
@@ -202,15 +229,23 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                 {rightPanel && (
                     <>
                         {/* Side panel for md+ */}
-                        <aside className="hidden md:block w-[350px] border-l border-white/10 bg-white/90 backdrop-blur-md shadow-2xl z-40 overflow-y-auto animate-in slide-in-from-right-10 duration-300">
+                        <aside className="hidden md:block w-96 border-l border-slate-200 bg-white shadow-xl z-40 overflow-y-auto animate-in slide-in-from-right-10 duration-300">
                             {rightPanel}
                         </aside>
                         {/* Overlay drawer for small screens */}
                         {isDrawerOpen && (
-                            <div className="fixed inset-0 z-50 flex">
-                                <div className="flex-1 bg-black bg-opacity-30" onClick={() => setIsDrawerOpen(false)} />
-                                <aside className="w-[350px] border-l border-slate-200 bg-white shadow-xl overflow-y-auto animate-in slide-in-from-right-10 duration-300">
-                                    {rightPanel}
+                            <div className="fixed inset-0 z-[70] flex md:hidden">
+                                <div className="flex-1 bg-slate-900/40 backdrop-blur-sm" onClick={() => setIsDrawerOpen(false)} />
+                                <aside className="w-[350px] max-w-[90vw] bg-white shadow-2xl overflow-y-auto animate-in slide-in-from-right-10 duration-300">
+                                    <div className="h-14 border-b border-slate-100 flex items-center justify-between px-6 bg-slate-50">
+                                        <span className="font-bold text-slate-700">Detalles</span>
+                                        <button onClick={() => setIsDrawerOpen(false)} className="p-2 text-slate-400 hover:text-slate-600">
+                                            <Plus className="rotate-45" size={24} />
+                                        </button>
+                                    </div>
+                                    <div className="flex-1">
+                                        {rightPanel}
+                                    </div>
                                 </aside>
                             </div>
                         )}

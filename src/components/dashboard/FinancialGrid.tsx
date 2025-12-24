@@ -114,86 +114,91 @@ export function FinancialGrid({ data, year, mode }: FinancialGridProps) {
     const formatFn = mode === 'kilos' ? formatNumber : formatCurrency;
 
     return (
-        <div className="flex flex-col h-full bg-white text-sm animate-in fade-in duration-500">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-500">
 
-            {/* Grid Header */}
-            <div className="flex bg-slate-100 border-b border-slate-200 sticky top-0 z-20 font-semibold text-slate-600">
-                <div className="flex-1 min-w-[250px] p-2 pl-4 flex items-center bg-slate-100 sticky left-0 z-30 border-r border-slate-200 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]">
-                    Empresa / Comprador ({mode === 'kilos' ? 'Kg' : '$'})
-                </div>
-                {MONTHS.map((m, i) => (
-                    <div key={i} className="w-28 p-2 text-right border-r border-slate-200 last:border-r-0 text-xs">
-                        {m}
-                    </div>
-                ))}
-                <div className="w-32 p-2 text-right bg-slate-50 font-bold text-slate-800 border-l border-slate-200">
-                    Total
-                </div>
-            </div>
-
-            {/* Grid Body */}
-            <div className="flex-1 overflow-auto">
-                {visibleRows.map((row) => (
-                    <div
-                        key={row.id}
-                        className={cn(
-                            "flex border-b border-slate-100 transition-colors hover:bg-blue-50/30",
-                            row.type === 'company' ? "bg-slate-50 font-semibold text-slate-800" : "bg-white text-slate-600"
-                        )}
-                    >
-                        {/* First Column */}
-                        <div className={cn(
-                            "flex-1 min-w-[250px] p-2 flex items-center sticky left-0 z-10 border-r border-slate-200 shadow-[4px_0_8px_-4px_rgba(0,0,0,0.1)]",
-                            row.type === 'company' ? "bg-slate-50 pl-4" : "bg-white pl-8"
-                        )}>
-                            {row.type === 'company' && (
-                                <button
-                                    onClick={() => toggleRow(row.id)}
-                                    className="mr-2 p-0.5 hover:bg-slate-200 rounded transition-colors"
-                                >
-                                    {(expandedRows[row.id] ?? true) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                </button>
-                            )}
-                            <span className="truncate">{row.label}</span>
+            {/* Horizontal Scroll Container */}
+            <div className="flex-1 overflow-x-auto overflow-y-visible custom-scrollbar">
+                <div className="min-w-max">
+                    {/* Grid Header */}
+                    <div className="flex bg-slate-100 border-b border-slate-200 sticky top-0 z-30 font-semibold text-slate-600">
+                        <div className="w-[180px] md:w-[250px] p-2 pl-4 flex items-center bg-slate-100 sticky left-0 z-40 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                            Empresa / Comprador ({mode === 'kilos' ? 'Kg' : '$'})
                         </div>
+                        {MONTHS.map((m, i) => (
+                            <div key={i} className="w-24 md:w-28 p-2 text-right border-r border-slate-200 last:border-r-0 text-[10px] md:text-xs">
+                                {m}
+                            </div>
+                        ))}
+                        <div className="w-28 md:w-32 p-2 text-right bg-slate-50 font-bold text-slate-800 border-l border-slate-200">
+                            Total
+                        </div>
+                    </div>
 
-                        {/* Month Columns */}
-                        {row.data.slice(0, 12).map((val, i) => (
-                            <div key={i} className="w-28 p-2 text-right border-r border-slate-100 text-xs font-mono">
-                                {val === 0 ? <span className="text-slate-200">-</span> : formatFn(val)}
+                    {/* Grid Body */}
+                    <div className="divide-y divide-slate-100">
+                        {visibleRows.map((row) => (
+                            <div
+                                key={row.id}
+                                className={cn(
+                                    "flex transition-colors hover:bg-blue-50/30",
+                                    row.type === 'company' ? "bg-slate-50 font-semibold text-slate-800" : "bg-white text-slate-600"
+                                )}
+                            >
+                                {/* First Column */}
+                                <div className={cn(
+                                    "w-[180px] md:w-[250px] p-2 flex items-center sticky left-0 z-20 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]",
+                                    row.type === 'company' ? "bg-slate-50 pl-4" : "bg-white pl-8"
+                                )}>
+                                    {row.type === 'company' && (
+                                        <button
+                                            onClick={() => toggleRow(row.id)}
+                                            className="mr-2 p-0.5 hover:bg-slate-200 rounded transition-colors"
+                                        >
+                                            {(expandedRows[row.id] ?? true) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                        </button>
+                                    )}
+                                    <span className="truncate text-xs md:text-sm">{row.label}</span>
+                                </div>
+
+                                {/* Month Columns */}
+                                {row.data.slice(0, 12).map((val, i) => (
+                                    <div key={i} className="w-24 md:w-28 p-2 text-right border-r border-slate-50 text-[10px] md:text-xs font-mono">
+                                        {val === 0 ? <span className="text-slate-200">-</span> : formatFn(val)}
+                                    </div>
+                                ))}
+
+                                {/* Total Column */}
+                                <div className={cn(
+                                    "w-28 md:w-32 p-2 text-right border-l border-slate-200 font-mono text-[10px] md:text-xs",
+                                    row.type === 'company' ? "font-bold text-slate-900 bg-slate-100/50" : "font-semibold text-slate-700 bg-slate-50/30"
+                                )}>
+                                    {formatFn(row.data[12])}
+                                </div>
                             </div>
                         ))}
 
-                        {/* Total Column */}
-                        <div className={cn(
-                            "w-32 p-2 text-right border-l border-slate-200 font-mono text-xs",
-                            row.type === 'company' ? "font-bold text-slate-900 bg-slate-100/50" : "font-semibold text-slate-700 bg-slate-50/30"
-                        )}>
-                            {formatFn(row.data[12])}
+                        {/* Grand Total Row */}
+                        <div className="flex bg-slate-800 text-white font-bold border-t border-slate-700 sticky bottom-0 z-30 shadow-[0_-2px_5px_rgba(0,0,0,0.1)]">
+                            <div className="w-[180px] md:w-[250px] p-3 pl-4 flex items-center bg-slate-800 sticky left-0 z-40 border-r border-slate-700">
+                                <Calculator size={16} className="mr-2 text-emerald-400" />
+                                <span className="text-xs md:text-sm">TOTAL GENERAL</span>
+                            </div>
+                            {gridData.grandTotals.slice(0, 12).map((val, i) => (
+                                <div key={i} className="w-24 md:w-28 p-3 text-right border-r border-slate-700 text-[10px] md:text-xs font-mono">
+                                    {val === 0 ? '-' : formatFn(val)}
+                                </div>
+                            ))}
+                            <div className="w-28 md:w-32 p-3 text-right bg-slate-900 border-l border-slate-700 font-mono text-[10px] md:text-xs text-emerald-400">
+                                {formatFn(gridData.grandTotals[12])}
+                            </div>
                         </div>
-                    </div>
-                ))}
-
-                {/* Grand Total Row */}
-                <div className="flex bg-slate-800 text-white font-bold border-t border-slate-800 sticky bottom-0 z-20 shadow-[-4px_-4px_10px_rgba(0,0,0,0.1)]">
-                    <div className="flex-1 min-w-[250px] p-3 pl-4 flex items-center bg-slate-800 sticky left-0 z-30 border-r border-slate-700">
-                        <Calculator size={16} className="mr-2 text-emerald-400" />
-                        TOTAL GENERAL
-                    </div>
-                    {gridData.grandTotals.slice(0, 12).map((val, i) => (
-                        <div key={i} className="w-28 p-3 text-right border-r border-slate-700 text-xs font-mono">
-                            {val === 0 ? '-' : formatFn(val)}
-                        </div>
-                    ))}
-                    <div className="w-32 p-3 text-right bg-slate-900 border-l border-slate-700 font-mono text-xs text-emerald-400">
-                        {formatFn(gridData.grandTotals[12])}
                     </div>
                 </div>
             </div>
 
             {/* Empty State */}
             {visibleRows.length === 0 && (
-                <div className="flex-1 flex items-center justify-center text-slate-400 flex-col gap-2">
+                <div className="p-12 flex flex-col items-center justify-center text-slate-400 gap-3">
                     <div className="p-4 bg-slate-50 rounded-full">
                         <Calculator size={32} />
                     </div>
