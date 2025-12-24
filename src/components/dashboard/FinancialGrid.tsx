@@ -117,8 +117,8 @@ export function FinancialGrid({ data, year, mode }: FinancialGridProps) {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col animate-in fade-in duration-500">
 
             {/* Horizontal Scroll Container */}
-            <div className="flex-1 overflow-x-auto overflow-y-visible custom-scrollbar">
-                <div className="min-w-max">
+            <div className="flex-1 overflow-x-auto overflow-y-visible custom-scrollbar scrolling-touch">
+                <div className="min-w-[1000px] md:min-w-full">
                     {/* Grid Header */}
                     <div className="flex bg-slate-100 border-b border-slate-200 sticky top-0 z-30 font-semibold text-slate-600">
                         <div className="w-[180px] md:w-[250px] p-2 pl-4 flex items-center bg-slate-100 sticky left-0 z-40 border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
