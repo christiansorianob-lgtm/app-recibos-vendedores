@@ -37,13 +37,13 @@ export function useOCR() {
                 const width = imageData.width;
                 const height = imageData.height;
 
-                // 3. Filtro de Enfoque (Soft Laplacian Sharpen para no generar ruido)
-                // Usamos un array temporal para no corromper la lectura de píxeles
+                // 3. Filtro de Enfoque (Ultra Soft Sharpen)
+                // Usamos un kernel más suave para no exagerar el grano del papel
                 const sharpened = new Uint8ClampedArray(data.length);
                 const kernel = [
-                    0, -1, 0,
-                    -1, 5, -1,
-                    0, -1, 0
+                    0, -1 / 2, 0,
+                    -1 / 2, 3, -1 / 2,
+                    0, -1 / 2, 0
                 ];
 
                 for (let y = 1; y < height - 1; y++) {
@@ -63,11 +63,10 @@ export function useOCR() {
                     }
                 }
 
-                // 4. Umbral Adaptativo (Bradley-Roth con reducción de ruido)
-                // Aumentamos S para suavizar y T para ser menos sensible al "mugre"
-                // Usamos Float64Array para evitar overflow en sumas de áreas grandes
-                const S = Math.floor(width / 8);
-                const T = 0.18;
+                // 4. Umbral Adaptativo (Bradley-Roth optimizado)
+                // Aumentamos T significativamente para "adelgazar" las letras y limpiar mugre
+                const S = Math.floor(width / 10);
+                const T = 0.25;
                 const integral = new Float64Array(width * height);
                 for (let x = 0; x < width; x++) {
                     let sum = 0;
