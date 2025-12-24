@@ -14,6 +14,8 @@ declare module 'tesseract.js' {
     export interface Worker {
         recognize(image: File | string): Promise<RecognizeResult>;
         terminate(): Promise<void>;
+        setParameters(params: Record<string, string>): Promise<void>;
+        detect(image: File | string): Promise<{ data: any }>;
     }
 
     export function createWorker(

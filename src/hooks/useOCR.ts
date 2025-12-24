@@ -21,26 +21,29 @@ export function useOCR() {
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d')!;
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
 
-                // 1. Detección básica de bordes para recorte (Magic Crop)
-                // Analizamos una cuadrícula para encontrar donde termina el fondo y empieza el papel
+                // 1. Redimensionar si es muy grande para mejorar velocidad pero mantener legibilidad
+                const scale = Math.min(1, 2500 / Math.max(img.width, img.height));
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+
+                // 2. Aplicar procesamiento de imagen (Escala de grises + Contraste)
+                ctx.filter = 'grayscale(100%) contrast(150%) brightness(110%)';
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                // 3. Detección de bordes para recorte (Magic Crop mejorado)
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
 
                 let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
-                const threshold = 40; // Sensibilidad al contraste
+                // Threshold dinámico basado en el brillo promedio
+                const threshold = 120;
 
-                // Muestreo rápido (cada 10 pixeles)
-                for (let y = 0; y < canvas.height; y += 10) {
-                    for (let x = 0; x < canvas.width; x += 10) {
+                for (let y = 0; y < canvas.height; y += 15) {
+                    for (let x = 0; x < canvas.width; x += 15) {
                         const i = (y * canvas.width + x) * 4;
-                        const r = data[i], g = data[i + 1], b = data[i + 2];
-                        // Si no es muy oscuro (asumiendo fondo oscuro o muy claro contrastado)
-                        const brightness = (r + g + b) / 3;
-                        if (brightness > threshold && brightness < 250) {
+                        const brightness = data[i]; // Ya es gris por el filtro
+                        if (brightness < threshold) { // Buscamos texto (oscuro) sobre papel (claro)
                             if (x < minX) minX = x;
                             if (y < minY) minY = y;
                             if (x > maxX) maxX = x;
@@ -49,29 +52,31 @@ export function useOCR() {
                     }
                 }
 
-                // Margen de seguridad
-                minX = Math.max(0, minX - 20);
-                minY = Math.max(0, minY - 20);
-                maxX = Math.min(canvas.width, maxX + 20);
-                maxY = Math.min(canvas.height, maxY + 20);
+                // Margen de seguridad (más amplio)
+                minX = Math.max(0, minX - 50);
+                minY = Math.max(0, minY - 50);
+                maxX = Math.min(canvas.width, maxX + 50);
+                maxY = Math.min(canvas.height, maxY + 50);
 
                 const cropWidth = maxX - minX;
                 const cropHeight = maxY - minY;
 
-                if (cropWidth > 100 && cropHeight > 100) {
+                if (cropWidth > 200 && cropHeight > 200) {
                     const cropCanvas = document.createElement('canvas');
                     cropCanvas.width = cropWidth;
                     cropCanvas.height = cropHeight;
                     const cropCtx = cropCanvas.getContext('2d')!;
-                    cropCtx.drawImage(img, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+                    // Mantener filtros en el recorte
+                    cropCtx.filter = 'contrast(120%) sharpen(100%)'; // Sharpen no es estándar pero contrast ayuda
+                    cropCtx.drawImage(canvas, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
                     cropCanvas.toBlob((blob) => {
                         if (blob) {
                             resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
                         }
-                    }, 'image/jpeg', 0.9);
+                    }, 'image/jpeg', 0.85);
                 } else {
-                    resolve(imageFile); // No se pudo recortar confiablemente
+                    resolve(imageFile);
                 }
             };
             img.src = URL.createObjectURL(imageFile);
@@ -126,12 +131,19 @@ export function useOCR() {
                 },
             });
 
+            // Configurar parámetros para mejor lectura de tablas
+            await worker.setParameters({
+                tessedit_pageseg_mode: '3',
+                tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúÁÉÍÓÚñÑ:.-/, $',
+                preserve_interword_spaces: '1',
+            });
+
             // Auto-rotación si se solicita
             if (options.autoCorrect) {
                 setProgress(10);
-                const { data: orientation } = await (worker as any).detect(processedFile);
-                if (orientation && orientation.orientation_degrees !== 0) {
-                    processedFile = await rotateImage(processedFile, orientation.orientation_degrees);
+                const { data: orientation } = await worker.detect(processedFile);
+                if (orientation && (orientation as any).orientation_degrees !== 0) {
+                    processedFile = await rotateImage(processedFile, (orientation as any).orientation_degrees);
                 }
                 setProgress(15);
             }
@@ -195,16 +207,17 @@ function parseReceiptText(text: string, confidence: number): ExtractedReceiptDat
     // 3. Buscar número de tiquete (Prioridad: GUÍA TRANSPORTE VEHÍCULO)
     // El objetivo es el número de 10 dígitos (ej. 1000082175)
 
+    const textNormal = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
     // Intento 1: Buscar en el bloque de texto completo cerca de "GUIA" o "TRANSPORTE"
     // Buscamos cualquier número de 9-11 dígitos que esté después de la palabra clave
-    const textNormal = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const guiaWords = ['guia', 'transp', 'vehi', 'gula', 'cuia'];
+    // Agregamos variantes que el OCR suele confundir (cul - ae, gula, etc.)
+    const guiaWords = ['guia', 'transp', 'vehi', 'gula', 'cuia', 'cul - ae', 'vehicu'];
 
     for (const word of guiaWords) {
         const index = textNormal.indexOf(word);
         if (index !== -1) {
-            // Buscamos en los siguientes 120 caracteres
-            const slice = textNormal.substring(index, index + 120);
+            const slice = textNormal.substring(index, index + 150);
             // Ignorar específicamente el bloque que contenga "CODIGO" o "NIT" si es posible
             const subSlice = slice.split('codigo')[0].split('nit')[0];
             const match = subSlice.match(/(\d{9,12})/);
