@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useState, useRef, useEffect } from 'react';
-import { Palmtree, LayoutDashboard, Ticket as TicketIcon, Menu, ChevronDown, Building2, UserCheck, Plus } from 'lucide-react';
+import { Palmtree, LayoutDashboard, Ticket as TicketIcon, Menu, ChevronDown, Building2, UserCheck, Plus, ScanLine } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -140,6 +140,15 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                                         <UserCheck size={16} className="text-slate-400" />
                                         <span>Compradores</span>
                                     </Link>
+                                    <div className="border-t border-slate-100 my-1"></div>
+                                    <Link
+                                        to="/catalogos/lector-recibos"
+                                        onClick={() => setIsCatalogOpen(false)}
+                                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                    >
+                                        <ScanLine size={16} className="text-slate-400" />
+                                        <span>Lector de Recibos</span>
+                                    </Link>
                                 </div>
                             )}
                         </div>
@@ -188,6 +197,8 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                                     <div className="flex flex-col gap-1">
                                         <NavLink to="/catalogos/empresas" icon={Building2} label="Empresas" mobile />
                                         <NavLink to="/catalogos/compradores" icon={UserCheck} label="Compradores" mobile />
+                                        <div className="border-t border-slate-100 my-1"></div>
+                                        <NavLink to="/catalogos/lector-recibos" icon={ScanLine} label="Lector de Recibos" mobile />
                                     </div>
                                 </div>
                             </nav>

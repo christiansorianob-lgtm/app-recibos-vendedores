@@ -6,6 +6,7 @@ import { TicketList } from './components/tickets/TicketList';
 import { TicketDetailsPanel } from './components/tickets/TicketDetailsPanel';
 import { EmpresasPage } from './components/catalogs/EmpresasPage';
 import { CompradoresPage } from './components/catalogs/CompradoresPage';
+import { ReceiptScannerPage } from './components/catalogs/ReceiptScannerPage';
 import { useTickets } from './hooks/useTickets';
 import { useState } from 'react';
 import type { TiqueteFruta, TiqueteInput } from './types';
@@ -92,6 +93,7 @@ function AppContent() {
 
         <Route path="/catalogos/empresas" element={<EmpresasPage />} />
         <Route path="/catalogos/compradores" element={<CompradoresPage />} />
+        <Route path="/catalogos/lector-recibos" element={<ReceiptScannerPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
