@@ -22,6 +22,7 @@ function AppContent() {
     toggleRevisado,
     filters,
     uniqueEmpresas,
+    uniqueCompradores,
     tiquetes
   } = useTickets();
 
@@ -72,6 +73,7 @@ function AppContent() {
             onToggleRevisado={toggleRevisado}
             filters={filters}
             uniqueEmpresas={uniqueEmpresas}
+            uniqueCompradores={uniqueCompradores}
             selectedId={selectedTicket?.id}
             onSelect={setSelectedTicket}
           />

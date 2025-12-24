@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 export function useTickets() {
     const [tiquetes, setTiquetes] = useState<TiqueteFruta[]>([]);
     const [filterEmpresa, setFilterEmpresa] = useState('');
+    const [filterComprador, setFilterComprador] = useState('');
     const [filterStartDate, setFilterStartDate] = useState('');
     const [filterEndDate, setFilterEndDate] = useState('');
 
@@ -79,14 +80,19 @@ export function useTickets() {
     const filteredTiquetes = useMemo(() => {
         return tiquetes.filter(t => {
             if (filterEmpresa && t.empresa_id !== filterEmpresa) return false;
+            if (filterComprador && t.comprador_id !== filterComprador) return false;
             if (filterStartDate && t.fecha < filterStartDate) return false;
             if (filterEndDate && t.fecha > filterEndDate) return false;
             return true;
         }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-    }, [tiquetes, filterEmpresa, filterStartDate, filterEndDate]);
+    }, [tiquetes, filterEmpresa, filterComprador, filterStartDate, filterEndDate]);
 
     const uniqueEmpresas = useMemo(() => {
         return Array.from(new Set(tiquetes.map(t => t.empresa_id)));
+    }, [tiquetes]);
+
+    const uniqueCompradores = useMemo(() => {
+        return Array.from(new Set(tiquetes.map(t => t.comprador_id)));
     }, [tiquetes]);
 
     return {
@@ -99,11 +105,14 @@ export function useTickets() {
         filters: {
             empresa: filterEmpresa,
             setEmpresa: setFilterEmpresa,
+            comprador: filterComprador,
+            setComprador: setFilterComprador,
             startDate: filterStartDate,
             setStartDate: setFilterStartDate,
             endDate: filterEndDate,
             setEndDate: setFilterEndDate,
         },
-        uniqueEmpresas
+        uniqueEmpresas,
+        uniqueCompradores
     };
 }

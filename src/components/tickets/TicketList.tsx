@@ -12,17 +12,20 @@ interface TicketListProps {
     filters: {
         empresa: string;
         setEmpresa: (val: string) => void;
+        comprador: string;
+        setComprador: (val: string) => void;
         startDate: string;
         setStartDate: (val: string) => void;
         endDate: string;
         setEndDate: (val: string) => void;
     };
     uniqueEmpresas: string[];
+    uniqueCompradores: string[];
     selectedId?: string;
     onSelect: (tiquete: TiqueteFruta) => void;
 }
 
-export function TicketList({ tiquetes, onEdit, onToggleRevisado, filters, uniqueEmpresas, selectedId, onSelect }: TicketListProps) {
+export function TicketList({ tiquetes, onEdit, onToggleRevisado, filters, uniqueEmpresas, uniqueCompradores, selectedId, onSelect }: TicketListProps) {
     const navigate = useNavigate();
 
     const getEmpresaNombre = (id: string) => catalogs.getEmpresas().find(e => e.id === id)?.nombre || id;
@@ -98,6 +101,20 @@ export function TicketList({ tiquetes, onEdit, onToggleRevisado, filters, unique
                             <option value="">Todas las Empresas</option>
                             {uniqueEmpresas.map(id => (
                                 <option key={id} value={id}>{getEmpresaNombre(id)}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="relative flex-1 max-w-md">
+                        <Filter className="absolute left-3 top-2.5 text-slate-400 h-4 w-4" />
+                        <select
+                            value={filters.comprador}
+                            onChange={(e) => filters.setComprador(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors appearance-none cursor-pointer hover:bg-slate-100"
+                        >
+                            <option value="">Todos los Compradores</option>
+                            {uniqueCompradores.map(id => (
+                                <option key={id} value={id}>{getCompradorNombre(id)}</option>
                             ))}
                         </select>
                     </div>
