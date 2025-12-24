@@ -89,7 +89,7 @@ export function DashboardView({ tiquetes }: DashboardViewProps) {
 
                     {/* Estado Filter */}
                     <div className="flex items-center gap-2">
-                        <label className="text-xs text-slate-500">Estado:</label>
+                        <label className="text-xs text-slate-700 font-semibold">Estado:</label>
                         <select
                             value={estadoFilter}
                             onChange={(e) => setEstadoFilter(e.target.value as any)}
@@ -103,7 +103,7 @@ export function DashboardView({ tiquetes }: DashboardViewProps) {
 
                     {/* Comprador Filter */}
                     <div className="flex items-center gap-2">
-                        <label className="text-xs text-slate-500">Comprador:</label>
+                        <label className="text-xs text-slate-700 font-semibold">Comprador:</label>
                         <select
                             value={compradorFilter}
                             onChange={(e) => setCompradorFilter(e.target.value)}
