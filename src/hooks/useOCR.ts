@@ -22,17 +22,32 @@ export function useOCR() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d')!;
 
-                // 1. Aumentar resolución (2500px es el punto dulce para Tesseract)
-                const targetWidth = 2500;
+                // 1. Aumentar resolución significativamente (3500px para legibilidad extrema)
+                const targetWidth = 3500;
                 const scale = targetWidth / img.width;
                 canvas.width = targetWidth;
                 canvas.height = img.height * scale;
 
-                // 2. Escala de grises + Contraste moderado
-                ctx.filter = 'grayscale(100%) contrast(150%) brightness(110%)';
+                // 2. Aplicar filtros iniciales
+                ctx.filter = 'grayscale(100%) contrast(180%) brightness(110%)';
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                // Desactivamos el recorte por ahora para evitar pérdida de datos en los bordes
+                // 3. Binarización manual (Forzar Blanco y Negro puro)
+                // Esto elimina las sombras y hace que el texto sea mucho más legible
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                const threshold = 140; // Ajuste para detectar tinta grisácea o clara
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                    const value = brightness < threshold ? 0 : 255;
+                    data[i] = value;     // R
+                    data[i + 1] = value;   // G
+                    data[i + 2] = value;   // B
+                }
+                ctx.putImageData(imageData, 0, 0);
+
+                // Desactivamos el recorte por ahora para asegurar captura completa
                 canvas.toBlob((blob) => {
                     if (blob) {
                         resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
@@ -91,15 +106,14 @@ export function useOCR() {
                 },
             });
 
-            // Configurar parámetros para mejor lectura estable
+            // Configurar parámetros para procesamiento agresivo de bloques
             await worker.setParameters({
-                tessedit_pageseg_mode: '3', // PSM 3 (Auto) es el más estable para recibos mixtos
+                tessedit_pageseg_mode: '6', // Trata la imagen como un bloque de texto uniforme, mejor para OCR de formularios
                 tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúÁÉÍÓÚñÑ:.-/, $',
                 preserve_interword_spaces: '1',
             });
 
             // Eliminamos worker.detect() para evitar el error de "Legacy Model"
-            // La rotación queda manual para mayor fiabilidad por ahora.
             setProgress(15);
 
             const { data } = await worker.recognize(processedFile);
@@ -166,7 +180,7 @@ function parseReceiptText(text: string, confidence: number): ExtractedReceiptDat
     // Intento 1: Buscar en el bloque de texto completo cerca de "GUIA" o "TRANSPORTE"
     // Buscamos cualquier número de 9-11 dígitos que esté después de la palabra clave
     // Agregamos variantes que el OCR suele confundir (cul - ae, gula, etc.)
-    const guiaWords = ['guia', 'transp', 'vehi', 'gula', 'cuia', 'cul - ae', 'vehicu'];
+    const guiaWords = ['guia', 'transp', 'vehi', 'gula', 'cuia', 'cul - ae', 'vehicu', 'ranspor', 'ansp'];
 
     for (const word of guiaWords) {
         const index = textNormal.indexOf(word);
