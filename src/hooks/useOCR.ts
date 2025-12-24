@@ -22,32 +22,51 @@ export function useOCR() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d')!;
 
-                // 1. Aumentar resolución significativamente (3500px para legibilidad extrema)
-                const targetWidth = 3500;
+                // 1. Redimensionar para un tamaño óptimo
+                const targetWidth = 3000;
                 const scale = targetWidth / img.width;
                 canvas.width = targetWidth;
                 canvas.height = img.height * scale;
 
-                // 2. Aplicar filtros iniciales
-                ctx.filter = 'grayscale(100%) contrast(180%) brightness(110%)';
+                // 2. Efecto "Fotocopia": Grises + Contraste Alto + Brillo
+                // El contraste alto ayuda a separar el texto del fondo sin perder zonas por sombras
+                ctx.filter = 'grayscale(100%) contrast(160%) brightness(110%)';
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                // 3. Binarización manual (Forzar Blanco y Negro puro)
-                // Esto elimina las sombras y hace que el texto sea mucho más legible
+                // 3. Filtro de Enfoque (Sharpen) manual
+                // Ayuda a definir los bordes de letras pequeñas o borrosas
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
-                const threshold = 140; // Ajuste para detectar tinta grisácea o clara
+                const width = imageData.width;
+                const height = imageData.height;
+                const output = new Uint8ClampedArray(data.length);
 
-                for (let i = 0; i < data.length; i += 4) {
-                    const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                    const value = brightness < threshold ? 0 : 255;
-                    data[i] = value;     // R
-                    data[i + 1] = value;   // G
-                    data[i + 2] = value;   // B
+                // Kernel de enfoque básico
+                const kernel = [
+                    0, -1, 0,
+                    -1, 5, -1,
+                    0, -1, 0
+                ];
+
+                for (let y = 1; y < height - 1; y++) {
+                    for (let x = 1; x < width - 1; x++) {
+                        for (let c = 0; c < 3; c++) {
+                            let sum = 0;
+                            for (let ky = 0; ky < 3; ky++) {
+                                for (let kx = 0; kx < 3; kx++) {
+                                    const idx = ((y + ky - 1) * width + (x + kx - 1)) * 4 + c;
+                                    sum += data[idx] * kernel[ky * 3 + kx];
+                                }
+                            }
+                            const outIdx = (y * width + x) * 4 + c;
+                            output[outIdx] = Math.min(255, Math.max(0, sum));
+                        }
+                        output[(y * width + x) * 4 + 3] = 255; // Alpha
+                    }
                 }
-                ctx.putImageData(imageData, 0, 0);
+                ctx.putImageData(new ImageData(output, width, height), 0, 0);
 
-                // Desactivamos el recorte por ahora para asegurar captura completa
+                // Desactivamos el recorte para asegurar integridad
                 canvas.toBlob((blob) => {
                     if (blob) {
                         resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
@@ -106,9 +125,9 @@ export function useOCR() {
                 },
             });
 
-            // Configurar parámetros para procesamiento agresivo de bloques
+            // Configurar parámetros para mejor lectura estable
             await worker.setParameters({
-                tessedit_pageseg_mode: '6', // Trata la imagen como un bloque de texto uniforme, mejor para OCR de formularios
+                tessedit_pageseg_mode: '3', // PSM 3 es más estable para detectar la estructura completa del recibo
                 tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúÁÉÍÓÚñÑ:.-/, $',
                 preserve_interword_spaces: '1',
             });
