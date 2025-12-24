@@ -192,21 +192,61 @@ function parseReceiptText(text: string, confidence: number): ExtractedReceiptDat
         }
     }
 
-    // 3. Buscar número de tiquete (GUÍA TRANSPORTE VEHÍCULO: 1000082175)
+    // 3. Buscar número de tiquete (Prioridad: GUÍA TRANSPORTE VEHÍCULO)
+    // El objetivo es el número de 10 dígitos (ej. 1000082175)
+
+    // Intento 1: Buscar específicamente palabras clave de GUIA
     for (const line of lines) {
-        const lowerLine = line.toLowerCase();
-        if (lowerLine.includes('guia') || lowerLine.includes('transporte') || lowerLine.includes('vehiculo')) {
-            const match = line.match(/(\d{8,12})/); // Números largos como el del ejemplo
+        const lowerLine = line.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if ((lowerLine.includes('guia') || lowerLine.includes('transporte') || lowerLine.includes('vehiculo')) && !lowerLine.includes('nit')) {
+            // Buscamos un número largo en esa misma línea o cerca
+            const match = line.match(/(\d{8,15})/);
             if (match) {
                 numeroTiquete = match[1];
                 break;
             }
         }
-        // Fallback a números de 4-6 si no hay largos
-        if (!numeroTiquete) {
-            const match = line.match(/(\d{4,6})/);
-            if (match && (lowerLine.includes('tiquete') || lowerLine.includes('codigo'))) {
+    }
+
+    // Intento 2: Si no se encontró en la misma línea, buscar en el bloque de texto cerca de GUIA
+    if (!numeroTiquete) {
+        const textNormal = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        // Buscamos la palabra guia/transporte y capturamos el siguiente número largo, evitando que pase por "NIT"
+        const guiaIndex = Math.max(textNormal.indexOf('guia'), textNormal.indexOf('transporte'));
+        if (guiaIndex !== -1) {
+            const afterGuia = textNormal.substring(guiaIndex, guiaIndex + 100);
+            const match = afterGuia.match(/(\d{8,15})/);
+            if (match && !afterGuia.substring(0, afterGuia.indexOf(match[0])).includes('nit')) {
                 numeroTiquete = match[1];
+            }
+        }
+    }
+
+    // Intento 3: Si sigue vacío, buscar cualquier número de 9-11 dígitos que NO sea el NIT
+    if (!numeroTiquete) {
+        const allNumbers = text.match(/\d{9,12}/g);
+        if (allNumbers) {
+            for (const num of allNumbers) {
+                const index = text.indexOf(num);
+                const context = text.substring(Math.max(0, index - 30), index).toLowerCase();
+                if (!context.includes('nit')) {
+                    numeroTiquete = num;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Intento 4 (Fallback final): Solo si lo anterior falla, usar CODIGO INTERNO (pero es menos deseado)
+    if (!numeroTiquete) {
+        for (const line of lines) {
+            const lowerLine = line.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (lowerLine.includes('codigo') || lowerLine.includes('interno')) {
+                const match = line.match(/(\d{4,10})/);
+                if (match) {
+                    numeroTiquete = match[1];
+                    break;
+                }
             }
         }
     }
