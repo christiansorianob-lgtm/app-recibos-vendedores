@@ -21,9 +21,10 @@ export function ReceiptScannerPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [autoCorrect, setAutoCorrect] = useState(true);
+    const [processedImage, setProcessedImage] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { processImage, rotateImage, isProcessing, progress } = useOCR();
+    const { processImage, rotateImage, autoCorrectImage, isProcessing, progress } = useOCR();
     const { addTiquete } = useTickets();
     const empresas = catalogs.getEmpresas();
     const compradores = catalogs.getCompradores();
@@ -70,12 +71,21 @@ export function ReceiptScannerPage() {
 
     const handleScan = async () => {
         if (!imageFile) return;
-
         try {
-            const data = await processImage(imageFile);
-            setExtractedData(data);
+            // Si autoCorrect está activado, guardamos la imagen procesada para el debug
+            let fileToProcess = imageFile;
+            if (autoCorrect) {
+                fileToProcess = await autoCorrectImage(imageFile);
+                setProcessedImage(fileToProcess);
+            } else {
+                setProcessedImage(null);
+            }
 
-            // Buscar el ID de la empresa por nombre (ej. "Oleoflores")
+            const data = await processImage(fileToProcess, { autoCorrect });
+            setExtractedData({
+                rawText: data.rawText,
+                confidence: data.confidence
+            });
             let suggestedEmpresaId = '';
             if (data.empresaNombre) {
                 const found = empresas.find(e =>
@@ -379,7 +389,7 @@ export function ReceiptScannerPage() {
                             </div>
 
                             {/* Raw Text Debug (New) */}
-                            <div className="pt-4 border-t border-slate-100">
+                            <div className="pt-4 border-t border-slate-100 space-y-4">
                                 <details className="group">
                                     <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors list-none">
                                         <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-open:bg-blue-500" />
@@ -389,6 +399,22 @@ export function ReceiptScannerPage() {
                                         {extractedData.rawText}
                                     </div>
                                 </details>
+
+                                {processedImage && (
+                                    <details className="group">
+                                        <summary className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors list-none">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-open:bg-purple-500" />
+                                            Ver Imagen que ve el OCR (Debug)
+                                        </summary>
+                                        <div className="mt-3 p-2 bg-slate-900 rounded-lg overflow-hidden">
+                                            <img
+                                                src={URL.createObjectURL(processedImage)}
+                                                alt="Processed Debug"
+                                                className="w-full h-auto opacity-80"
+                                            />
+                                        </div>
+                                    </details>
+                                )}
                             </div>
 
                             {/* Save Button */}
