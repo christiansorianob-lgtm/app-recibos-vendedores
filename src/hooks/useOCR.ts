@@ -22,28 +22,28 @@ export function useOCR() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d')!;
 
-                // 1. Redimensionar si es muy grande para mejorar velocidad pero mantener legibilidad
-                const scale = Math.min(1, 2500 / Math.max(img.width, img.height));
-                canvas.width = img.width * scale;
+                // 1. Redimensionar para asegurar que el texto sea lo suficientemente grande (3000px ancho)
+                const targetWidth = 3000;
+                const scale = targetWidth / img.width;
+                canvas.width = targetWidth;
                 canvas.height = img.height * scale;
 
-                // 2. Aplicar procesamiento de imagen (Escala de grises + Contraste)
-                ctx.filter = 'grayscale(100%) contrast(150%) brightness(110%)';
+                // 2. Aplicar procesamiento de imagen agresivo (Escala de grises + Alto Contraste)
+                // Esto simula una binarización para que el OCR vea texto negro puro sobre blanco
+                ctx.filter = 'grayscale(100%) contrast(250%) brightness(100%)';
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                // 3. Detección de bordes para recorte (Magic Crop mejorado)
+                // 3. Detección de bordes para recorte (Magic Crop más conservador)
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
 
                 let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
-                // Threshold dinámico basado en el brillo promedio
-                const threshold = 120;
+                const threshold = 100; // Más estricto para detectar tinta negra
 
-                for (let y = 0; y < canvas.height; y += 15) {
-                    for (let x = 0; x < canvas.width; x += 15) {
+                for (let y = 0; y < canvas.height; y += 20) {
+                    for (let x = 0; x < canvas.width; x += 20) {
                         const i = (y * canvas.width + x) * 4;
-                        const brightness = data[i]; // Ya es gris por el filtro
-                        if (brightness < threshold) { // Buscamos texto (oscuro) sobre papel (claro)
+                        if (data[i] < threshold) {
                             if (x < minX) minX = x;
                             if (y < minY) minY = y;
                             if (x > maxX) maxX = x;
@@ -52,29 +52,28 @@ export function useOCR() {
                     }
                 }
 
-                // Margen de seguridad (más amplio)
-                minX = Math.max(0, minX - 50);
-                minY = Math.max(0, minY - 50);
-                maxX = Math.min(canvas.width, maxX + 50);
-                maxY = Math.min(canvas.height, maxY + 50);
+                // Margen de seguridad muy amplio para no cortar nada importante
+                minX = Math.max(0, minX - 100);
+                minY = Math.max(0, minY - 100);
+                maxX = Math.min(canvas.width, maxX + 100);
+                maxY = Math.min(canvas.height, maxY + 100);
 
                 const cropWidth = maxX - minX;
                 const cropHeight = maxY - minY;
 
-                if (cropWidth > 200 && cropHeight > 200) {
+                if (cropWidth > 500 && cropHeight > 500) {
                     const cropCanvas = document.createElement('canvas');
                     cropCanvas.width = cropWidth;
                     cropCanvas.height = cropHeight;
                     const cropCtx = cropCanvas.getContext('2d')!;
-                    // Mantener filtros en el recorte
-                    cropCtx.filter = 'contrast(120%) sharpen(100%)'; // Sharpen no es estándar pero contrast ayuda
+                    // Usar la imagen ya filtrada del canvas principal
                     cropCtx.drawImage(canvas, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
                     cropCanvas.toBlob((blob) => {
                         if (blob) {
                             resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
                         }
-                    }, 'image/jpeg', 0.85);
+                    }, 'image/jpeg', 0.9);
                 } else {
                     resolve(imageFile);
                 }
@@ -131,9 +130,9 @@ export function useOCR() {
                 },
             });
 
-            // Configurar parámetros para mejor lectura de tablas
+            // Configurar parámetros para mejor lectura de múltiples columnas
             await worker.setParameters({
-                tessedit_pageseg_mode: '3',
+                tessedit_pageseg_mode: '1', // Automatic con OSD para detectar orientación y columnas
                 tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúÁÉÍÓÚñÑ:.-/, $',
                 preserve_interword_spaces: '1',
             });
