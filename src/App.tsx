@@ -6,6 +6,7 @@ import { TicketList } from './components/tickets/TicketList';
 import { TicketDetailsPanel } from './components/tickets/TicketDetailsPanel';
 import { EmpresasPage } from './components/catalogs/EmpresasPage';
 import { CompradoresPage } from './components/catalogs/CompradoresPage';
+import { MigrationPanel } from './components/admin/MigrationPanel';
 import { useTickets } from './hooks/useTickets';
 import { useState } from 'react';
 import type { TiqueteFruta, TiqueteInput } from './types';
@@ -90,6 +91,8 @@ function AppContent() {
 
         <Route path="/catalogos/empresas" element={<EmpresasPage />} />
         <Route path="/catalogos/compradores" element={<CompradoresPage />} />
+
+        <Route path="/admin/migration" element={<MigrationPanel />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

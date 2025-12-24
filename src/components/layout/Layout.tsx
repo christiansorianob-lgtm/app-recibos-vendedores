@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useState, useRef, useEffect } from 'react';
-import { Palmtree, LayoutDashboard, Ticket as TicketIcon, Menu, ChevronDown, Building2, UserCheck, Plus } from 'lucide-react';
+import { Palmtree, LayoutDashboard, Ticket as TicketIcon, Menu, ChevronDown, Building2, UserCheck, Plus, Database } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -188,6 +188,13 @@ export function Layout({ children, rightPanel }: LayoutProps) {
                                     <div className="flex flex-col gap-1">
                                         <NavLink to="/catalogos/empresas" icon={Building2} label="Empresas / Fincas" mobile />
                                         <NavLink to="/catalogos/compradores" icon={UserCheck} label="Compradores" mobile />
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-slate-100">
+                                    <span className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Administración</span>
+                                    <div className="flex flex-col gap-1">
+                                        <NavLink to="/admin/migration" icon={Database} label="Migración a BD" mobile />
                                     </div>
                                 </div>
                             </nav>
