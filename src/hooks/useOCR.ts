@@ -28,26 +28,22 @@ export function useOCR() {
                 canvas.width = targetWidth;
                 canvas.height = img.height * scale;
 
-                // 2. Efecto "Fotocopia": Grises + Contraste Alto + Brillo
-                // El contraste alto ayuda a separar el texto del fondo sin perder zonas por sombras
-                ctx.filter = 'grayscale(100%) contrast(160%) brightness(110%)';
+                // 2. Grayscale inicial
+                ctx.filter = 'grayscale(100%)';
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                // 3. Filtro de Enfoque (Sharpen) manual
-                // Ayuda a definir los bordes de letras pequeñas o borrosas
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imageData.data;
                 const width = imageData.width;
                 const height = imageData.height;
-                const output = new Uint8ClampedArray(data.length);
 
-                // Kernel de enfoque básico
-                const kernel = [
-                    0, -1, 0,
-                    -1, 5, -1,
-                    0, -1, 0
+                // 3. Filtro de Enfoque (Strong Sharpen)
+                const sharpenKernel = [
+                    -1, -1, -1,
+                    -1, 9, -1,
+                    -1, -1, -1
                 ];
-
+                const sharpened = new Uint8ClampedArray(data.length);
                 for (let y = 1; y < height - 1; y++) {
                     for (let x = 1; x < width - 1; x++) {
                         for (let c = 0; c < 3; c++) {
@@ -55,18 +51,49 @@ export function useOCR() {
                             for (let ky = 0; ky < 3; ky++) {
                                 for (let kx = 0; kx < 3; kx++) {
                                     const idx = ((y + ky - 1) * width + (x + kx - 1)) * 4 + c;
-                                    sum += data[idx] * kernel[ky * 3 + kx];
+                                    sum += data[idx] * sharpenKernel[ky * 3 + kx];
                                 }
                             }
                             const outIdx = (y * width + x) * 4 + c;
-                            output[outIdx] = Math.min(255, Math.max(0, sum));
+                            sharpened[outIdx] = Math.min(255, Math.max(0, sum));
                         }
-                        output[(y * width + x) * 4 + 3] = 255; // Alpha
+                        sharpened[(y * width + x) * 4 + 3] = 255;
                     }
                 }
-                ctx.putImageData(new ImageData(output, width, height), 0, 0);
 
-                // Desactivamos el recorte para asegurar integridad
+                // 4. Umbral Adaptativo (Bradley-Roth)
+                // Ideal para recibos con sombras o iluminación irregular
+                const S = Math.floor(width / 16);
+                const T = 0.12;
+                const integral = new Int32Array(width * height);
+                for (let x = 0; x < width; x++) {
+                    let sum = 0;
+                    for (let y = 0; y < height; y++) {
+                        const i = (y * width + x) * 4;
+                        const b = (sharpened[i] + sharpened[i + 1] + sharpened[i + 2]) / 3;
+                        sum += b;
+                        if (x === 0) integral[y * width + x] = sum;
+                        else integral[y * width + x] = integral[y * width + x - 1] + sum;
+                    }
+                }
+
+                for (let x = 0; x < width; x++) {
+                    for (let y = 0; y < height; y++) {
+                        const x1 = Math.max(0, x - S / 2);
+                        const x2 = Math.min(width - 1, x + S / 2);
+                        const y1 = Math.max(0, y - S / 2);
+                        const y2 = Math.min(height - 1, y + S / 2);
+                        const count = (x2 - x1) * (y2 - y1);
+                        const sum = integral[y2 * width + x2] - integral[y1 * width + x2] - integral[y2 * width + x1] + integral[y1 * width + x1];
+
+                        const i = (y * width + x) * 4;
+                        const b = (sharpened[i] + sharpened[i + 1] + sharpened[i + 2]) / 3;
+                        const val = (b * count) < (sum * (1.0 - T)) ? 0 : 255;
+                        sharpened[i] = sharpened[i + 1] = sharpened[i + 2] = val;
+                    }
+                }
+                ctx.putImageData(new ImageData(sharpened, width, height), 0, 0);
+
                 canvas.toBlob((blob) => {
                     if (blob) {
                         resolve(new File([blob], imageFile.name, { type: 'image/jpeg' }));
@@ -117,7 +144,7 @@ export function useOCR() {
                 processedFile = await autoCorrectImage(imageFile);
             }
 
-            const worker = await createWorker('spa', 1, {
+            const worker = await createWorker('eng+spa', 1, {
                 logger: (m) => {
                     if (m.status === 'recognizing text') {
                         setProgress(Math.round(m.progress * 80) + 20);
@@ -125,11 +152,13 @@ export function useOCR() {
                 },
             });
 
-            // Configurar parámetros para mejor lectura estable
+            // Configurar parámetros para máxima nitidez de texto pequeño
             await worker.setParameters({
-                tessedit_pageseg_mode: '3', // PSM 3 es más estable para detectar la estructura completa del recibo
+                tessedit_pageseg_mode: '3',
                 tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúÁÉÍÓÚñÑ:.-/, $',
                 preserve_interword_spaces: '1',
+                tessjs_create_hocr: '0',
+                tessjs_create_tsv: '0',
             });
 
             // Eliminamos worker.detect() para evitar el error de "Legacy Model"
